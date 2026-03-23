@@ -1,6 +1,5 @@
 export interface FlagResponse {
-  key: string;
+  flagKey: string;
   enabled: boolean;
-  variant?: string | null;
-  payload?: Record<string, unknown> | null;
+  reason: string;
 }
