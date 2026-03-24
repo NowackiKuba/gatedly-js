@@ -1,18 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useGatedlyContext } from '../context/gatedly.context';
-import { FlagContext } from '../interfaces/flag-context.interface';
-import { DEFAULT_TTL } from '../constants';
+import { useEffect, useState } from "react";
+import { useGatedlyContext } from "../context/gatedly.context";
+import { FlagContext } from "../interfaces/flag-context.interface";
+import { DEFAULT_TTL } from "../constants";
 
 interface UseFeatureFlagResult {
   enabled: boolean;
   loading: boolean;
   error: Error | null;
+  variant: string | null;
+  experimentId: string | null;
 }
 
-export const useFeatureFlag = (key: string, context?: FlagContext): UseFeatureFlagResult => {
+export const useFeatureFlag = (
+  key: string,
+  context?: FlagContext,
+): UseFeatureFlagResult => {
   const { client, cache, userId } = useGatedlyContext();
-  const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [enabled, setEnabled] = useState<boolean>(false);
+  const [variant, setVariant] = useState<string | null>(null);
+  const [experimentId, setExperimentId] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -21,7 +28,7 @@ export const useFeatureFlag = (key: string, context?: FlagContext): UseFeatureFl
       attributes: context?.attributes,
     };
 
-    const cacheKey = `${key}:${mergedContext.userId ?? 'anonymous'}`;
+    const cacheKey = `${key}:${mergedContext.userId ?? "anonymous"}`;
     const cached = cache.get(cacheKey);
 
     if (cached) {
@@ -37,6 +44,8 @@ export const useFeatureFlag = (key: string, context?: FlagContext): UseFeatureFl
       .then((flag) => {
         cache.set(cacheKey, flag, DEFAULT_TTL);
         setEnabled(flag.enabled);
+        setExperimentId(flag.experimentId ?? null);
+        setVariant(flag.variant ?? null);
         setError(null);
       })
       .catch((err) => {
@@ -48,5 +57,5 @@ export const useFeatureFlag = (key: string, context?: FlagContext): UseFeatureFl
       });
   }, [key, context?.userId, context?.attributes]);
 
-  return { enabled, loading, error };
+  return { enabled, loading, error, variant, experimentId };
 };

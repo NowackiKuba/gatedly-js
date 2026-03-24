@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useGatedlyContext } from '../context/gatedly.context';
-import { FlagContext } from '../interfaces/flag-context.interface';
-import { FlagResponse } from '../interfaces/flag-response.interface';
-import { DEFAULT_TTL } from '../constants';
+import { useEffect, useState } from "react";
+import { useGatedlyContext } from "../context/gatedly.context";
+import { FlagContext } from "../interfaces/flag-context.interface";
+import { FlagResponse } from "../interfaces/flag-response.interface";
+import { DEFAULT_TTL } from "../constants";
 
 interface UseFeatureFlagsResult {
   flags: Record<string, boolean>;
@@ -11,9 +11,13 @@ interface UseFeatureFlagsResult {
   error: Error | null;
 }
 
-export const useFeatureFlags = (keys: string[], context?: FlagContext): UseFeatureFlagsResult => {
+export const useFeatureFlags = (
+  keys: string[],
+  context?: FlagContext,
+): UseFeatureFlagsResult => {
   const { client, cache, userId } = useGatedlyContext();
   const [responses, setResponses] = useState<FlagResponse[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -23,11 +27,23 @@ export const useFeatureFlags = (keys: string[], context?: FlagContext): UseFeatu
       attributes: context?.attributes,
     };
 
-    const cacheKey = `batch:${keys.join(',')}:${mergedContext.userId ?? 'anonymous'}`;
-    const cached = cache.get(cacheKey);
+    // sprawdź cache per flaga
+    const cachedResults: FlagResponse[] = [];
+    const missingKeys: string[] = [];
 
-    if (cached) {
-      setResponses([cached]);
+    keys.forEach((key) => {
+      const cacheKey = `${key}:${mergedContext.userId ?? "anonymous"}`;
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        cachedResults.push(cached);
+      } else {
+        missingKeys.push(key);
+      }
+    });
+
+    // wszystkie w cache — nie fetchuj
+    if (missingKeys.length === 0) {
+      setResponses(cachedResults);
       setLoading(false);
       return;
     }
@@ -38,8 +54,8 @@ export const useFeatureFlags = (keys: string[], context?: FlagContext): UseFeatu
       .evaluateBatch(keys, mergedContext)
       .then((flags) => {
         flags.forEach((flag) => {
-          const key = `${flag.flagKey}:${mergedContext.userId ?? 'anonymous'}`;
-          cache.set(key, flag, DEFAULT_TTL);
+          const cacheKey = `${flag.flagKey}:${mergedContext.userId ?? "anonymous"}`;
+          cache.set(cacheKey, flag, DEFAULT_TTL);
         });
         setResponses(flags);
         setError(null);
@@ -51,7 +67,7 @@ export const useFeatureFlags = (keys: string[], context?: FlagContext): UseFeatu
       .finally(() => {
         setLoading(false);
       });
-  }, [keys.join(','), context?.userId]);
+  }, [keys.join(","), context?.userId]);
 
   const flags = responses.reduce<Record<string, boolean>>((acc, flag) => {
     acc[flag.flagKey] = flag.enabled;
